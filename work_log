@@ -1,0 +1,24 @@
+#not working for unc bam
+#bwa aln /gscmnt/gc3027/dinglab/medseq/fasta/GRCh37PlusSelectedVirus2014.11/GRCh37Plus19Virus.fa -b1 TCGA-G3-A3CH-11A-11R-A22L-07.bam > TCGA-G3-A3CH-11A-11R-A22L-07.1.sai
+#bwa aln /gscmnt/gc3027/dinglab/medseq/fasta/GRCh37PlusSelectedVirus2014.11/GRCh37Plus19Virus.fa -b2 TCGA-G3-A3CH-11A-11R-A22L-07.bam > TCGA-G3-A3CH-11A-11R-A22L-07.2.sai
+#bwa sampe /gscmnt/gc3027/dinglab/medseq/fasta/GRCh37PlusSelectedVirus2014.11/GRCh37Plus19Virus.fa TCGA-G3-A3CH-11A-11R-A22L-07.1.sai TCGA-G3-A3CH-11A-11R-A22L-07.2.sai TCGA-G3-A3CH-11A-11R-A22L-07.bam TCGA-G3-A3CH-11A-11R-A22L-07.bam > TCGA-G3-A3CH-11A-11R-A22L-07.realign.sam
+
+samtools sort -n TCGA-G3-A3CH-11A-11R-A22L-07.bam TCGA-G3-A3CH-11A-11R-A22L-07.sorted
+
+#####
+
+samtools view TCGA-G3-A3CH-11A-11R-A22L-07.sorted.bam | perl -ne '$l=$_; $f_q1="TCGA-G3-A3CH-11A-11R-A22L-07.sorted.fq1"; $f_q2="TCGA-G3-A3CH-11A-11R-A22L-07.sorted.fq2"; if($first==0) { open(OUT1,">$f_q1"); open(OUT2,">$f_q2");  $first=1;}  @ss=split("\t",$l); $flag=$ss[1]; $cigar=$ss[5]; if(($flag & 0x100) || ($flag & 0x800) || ($cigar=~/H/)) { next; } $id=$ss[0]; $seq=$ss[9]; $q=$ss[10];  if($id=~/\/1$/) { $r1=$id; $r1=~s/\/1$//g; $seq1=$seq; $q1=$q; if(($flag & 0x4) || ($cigar=~/S/)) { $unmapped1=1; } else { $unmapped1=0; }  } if($id=~/\/2$/) { $r2=$id; $r2=~s/\/2$//g; $seq2=$seq; $q2=$q; if(($flag & 0x4) || ($cigar=~/S/)) { $unmapped2=1; } else { $unmapped2=0;} } if(($r1 eq $r2) && ($unmapped1==1 || $unmapped2==1)) { print OUT1 "@",$r1,"/1","\n"; print OUT1 $seq1,"\n"; print OUT1 "+","\n"; print OUT1 $q1,"\n"; print OUT2 "@",$r1,"/2","\n"; print OUT2 $seq2,"\n"; print OUT2 "+","\n"; print OUT2 $q2,"\n";}'
+
+bwa aln /gscmnt/gc3027/dinglab/medseq/fasta/GRCh37PlusSelectedVirus2014.11/GRCh37Plus19Virus.fa TCGA-G3-A3CH-11A-11R-A22L-07.sorted.fq1 > TCGA-G3-A3CH-11A-11R-A22L-07.sorted.1.sai 
+bwa aln /gscmnt/gc3027/dinglab/medseq/fasta/GRCh37PlusSelectedVirus2014.11/GRCh37Plus19Virus.fa TCGA-G3-A3CH-11A-11R-A22L-07.sorted.fq2 > TCGA-G3-A3CH-11A-11R-A22L-07.sorted.2.sai
+bwa sampe /gscmnt/gc3027/dinglab/medseq/fasta/GRCh37PlusSelectedVirus2014.11/GRCh37Plus19Virus.fa TCGA-G3-A3CH-11A-11R-A22L-07.sorted.1.sai TCGA-G3-A3CH-11A-11R-A22L-07.sorted.2.sai TCGA-G3-A3CH-11A-11R-A22L-07.sorted.fq1 TCGA-G3-A3CH-11A-11R-A22L-07.sorted.fq2  > TCGA-G3-A3CH-11A-11R-A22L-07.realign.sam 
+
+samtools view -b -S TCGA-G3-A3CH-11A-11R-A22L-07.realign.sam > TCGA-G3-A3CH-11A-11R-A22L-07.realign.bam
+
+samtools view TCGA-G3-A3CH-11A-11R-A22L-07.realign.bam | perl -ne '$l=$_; @ss=split("\t",$l); if($ss[2]=~/^gi/) { print $l; }' > TCGA-G3-A3CH-11A-11R-A22L-07.virus.sam
+samtools view TCGA-G3-A3CH-11A-11R-A22L-07.realign.bam | perl -ne '$l=$_; @ss=split("\t",$l); if($ss[2]=~/^gi/  && (!($ss[6]=~/^gi/))  && (!($ss[6]=~/\=/))) { print $l; }' > TCGA-G3-A3CH-11A-11R-A22L-07.discordant.sam
+#samtools view TCGA-G3-A3CH-11A-11R-A22L-07.realign.bam | perl -ne '$l=$_; @ss=split("\t",$l); if($ss[2]=~/^gi/  && (!($ss[6]=~/^gi/))  && (!($ss[6]=~/\=/))) { print $ss[0],"\n"; }' > TCGA-G3-A3CH-11A-11R-A22L-07.discordant.ids
+#samtools view TCGA-G3-A3CH-11A-11R-A22L-07.realign.bam | perl -ne '$l=$_; if($first==0) { $f="TCGA-G3-A3CH-11A-11R-A22L-07.discordant.ids"; foreach $id (`cat $f`) { $id_tr=$id; chomp($id_tr); $h{$id_tr}=1; } $first=1; } @ss=split("\t",$l); if(defined $h{$ss[0]}) { print $l; }' > TCGA-G3-A3CH-11A-11R-A22L-07.discordant.sam 
+#bedtools bamtofastq -i TCGA-G3-A3CH-11A-11R-A22L-07.sorted.bam -fq TCGA-G3-A3CH-11A-11R-A22L-07.r1.fq -fq2 TCGA-G3-A3CH-11A-11R-A22L-07.r2.fq
+
+perl -e '$f_g="/gscuser/scao/gc2516/dinglab/vh/virusfusion/lihc2/TCGA-CC-5258-01A-01R-A131-07/TCGA-CC-5258-01A-01R-A131-07.discordant.bed"; $f_r="/gscuser/scao/gc3027/cnv/brca/all_CDS_and_ncRNA_24Chroms_Contigs_1BasedStart_2bpFlanks_MergedExons"; $sn=$f_g; $sn="TCGA-CC-5258-01A-01R-A131-07"; foreach $a (`cat $f_r`) { @ss=split("\t",$a); $chr=$ss[0]; $l=$ss[1]; $r=$ss[2]; $g=$ss[3]; chomp($g); $gbed{$g}{$chr}{$l}{$r}=1; } foreach $a (`cat $f_g`) { @ss=split(" ",$a); $chr=$ss[0]; $pos=$ss[1];  foreach $g (keys %gbed) { foreach $c (keys %{$gbed{$g}}) { if($chr==$c) { foreach $l (keys %{$gbed{$g}{$c}}) { foreach $r (keys %{$gbed{$g}{$c}{$l}}) {  if($r>=$pos && $l<=$pos) { $h{$g}++; }}}}}}} foreach $l (`cat /gscuser/scao/gc2517/dinglab/virus_histogram_figures/pan23_all_set_virus_count.dat`) { @ss=split("\t",$l); $s_2_t{$ss[0]}=$ss[2]; $s_2_nt{$ss[0]}=$ss[1]; } foreach $g (sort { $h{$b} <=> $h{$a} } keys %h) { print $sn,"\t",$s_2_nt{$sn},"\t",$s_2_t{$sn},"\t",$g,"\t",$h{$g},"\n";}'
